@@ -15,6 +15,13 @@ enum TokenType {
     // operators
     ASSIGN,
     PLUS,
+    MINUS,
+    BANG,
+    ASTERISK,
+    SLASH,
+
+    LT,
+    GT,
 
     // delimeters
     COMMA,
@@ -28,6 +35,11 @@ enum TokenType {
     // keywords
     FUNCTION,
     LET,
+    RETURN,
+    IF,
+    ELSE,
+    TRUE,
+    FALSE,
 
     // whitespace
     WHITESPACE,
@@ -104,8 +116,42 @@ impl Lexer {
 
     fn next_char(&mut self) -> Token {
         let token: Token = match self.ch {
+            // operators
             '=' => Token {
                 type_: TokenType::ASSIGN,
+                literal: self.ch.to_string(),
+            },
+            '+' => Token {
+                type_: TokenType::PLUS,
+                literal: self.ch.to_string(),
+            },
+            '-' => Token {
+                type_: TokenType::MINUS,
+                literal: self.ch.to_string(),
+            },
+            '!' => Token {
+                type_: TokenType::BANG,
+                literal: self.ch.to_string(),
+            },
+            '*' => Token {
+                type_: TokenType::ASTERISK,
+                literal: self.ch.to_string(),
+            },
+            '/' => Token {
+                type_: TokenType::SLASH,
+                literal: self.ch.to_string(),
+            },
+            '<' => Token {
+                type_: TokenType::LT,
+                literal: self.ch.to_string(),
+            },
+            '>' => Token {
+                type_: TokenType::GT,
+                literal: self.ch.to_string(),
+            },
+            // delimeters
+            ',' => Token {
+                type_: TokenType::COMMA,
                 literal: self.ch.to_string(),
             },
             ';' => Token {
@@ -118,14 +164,6 @@ impl Lexer {
             },
             ')' => Token {
                 type_: TokenType::RPAREN,
-                literal: self.ch.to_string(),
-            },
-            ',' => Token {
-                type_: TokenType::COMMA,
-                literal: self.ch.to_string(),
-            },
-            '+' => Token {
-                type_: TokenType::PLUS,
                 literal: self.ch.to_string(),
             },
             '{' => Token {
@@ -158,6 +196,26 @@ impl Lexer {
                 type_: TokenType::FUNCTION,
                 literal,
             },
+            "return" => Token {
+                type_: TokenType::RETURN,
+                literal,
+            },
+            "if" => Token {
+                type_: TokenType::IF,
+                literal,
+            },
+            "else" => Token {
+                type_: TokenType::ELSE,
+                literal,
+            },
+            "true" => Token {
+                type_: TokenType::TRUE,
+                literal,
+            },
+            "false" => Token {
+                type_: TokenType::FALSE,
+                literal,
+            },
             // user-defined identifier
             _ => Token {
                 type_: TokenType::IDENT,
@@ -170,7 +228,9 @@ impl Lexer {
         println!("{}", self.ch);
         let token: Token = match self.ch {
             // single-char tokens
-            '=' | ';' | '(' | ')' | ',' | '+' | '{' | '}' => self.next_char(),
+            '=' | '+' | '-' | '*' | '/' | '<' | '>' | '!' | ';' | '(' | ')' | ',' | '{' | '}' => {
+                self.next_char()
+            }
 
             // start of an identifier (keyword or user-defined)
             c if c.is_alphabetic() | (c == '_') => self.next_identifier(),
