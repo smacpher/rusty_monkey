@@ -5,11 +5,11 @@ mod tests;
 
 #[derive(Debug, PartialEq)]
 enum TokenType {
-    ILLEGAL,
+    UNKNOWN,
     EOF,
 
     // identifers and literals
-    IDENTIFIER,
+    IDENT,
     INT,
 
     // operators
@@ -28,6 +28,9 @@ enum TokenType {
     // keywords
     FUNCTION,
     LET,
+
+    // whitespace
+    WHITESPACE,
 }
 
 #[derive(Debug)]
@@ -71,7 +74,35 @@ impl Lexer {
         self.read_position += 1;
     }
 
-    pub fn next_token(&mut self) -> Token {
+    fn read_identifier(&mut self) -> String {
+        let start_position = self.position;
+        while self.ch.is_alphanumeric() | (self.ch == '_') {
+            println!("{}", self.ch);
+            self.read_char();
+        }
+
+        return self.input[start_position..self.position].to_string();
+    }
+
+    fn read_number(&mut self) -> String {
+        let start_position = self.position;
+        while self.ch.is_digit(10) {
+            self.read_char();
+        }
+
+        return self.input[start_position..self.position].to_string();
+    }
+
+    fn read_whitespace(&mut self) -> String {
+        let start_position = self.position;
+        while self.ch.is_whitespace() {
+            self.read_char();
+        }
+
+        return self.input[start_position..self.position].to_string();
+    }
+
+    fn next_char(&mut self) -> Token {
         let token: Token = match self.ch {
             '=' => Token {
                 type_: TokenType::ASSIGN,
@@ -105,8 +136,60 @@ impl Lexer {
                 type_: TokenType::RBRACE,
                 literal: self.ch.to_string(),
             },
+
+            _ => panic!("Detected an unhandled single-char token!"),
+        };
+
+        self.read_char();
+
+        return token;
+    }
+
+    fn next_identifier(&mut self) -> Token {
+        let literal = self.read_identifier();
+
+        return match literal.as_str() {
+            // keywords
+            "let" => Token {
+                type_: TokenType::LET,
+                literal,
+            },
+            "fn" => Token {
+                type_: TokenType::FUNCTION,
+                literal,
+            },
+            // user-defined identifier
             _ => Token {
-                type_: TokenType::EOF,
+                type_: TokenType::IDENT,
+                literal,
+            },
+        };
+    }
+
+    pub fn next_token(&mut self) -> Token {
+        println!("{}", self.ch);
+        let token: Token = match self.ch {
+            // single-char tokens
+            '=' | ';' | '(' | ')' | ',' | '+' | '{' | '}' => self.next_char(),
+
+            // start of an identifier (keyword or user-defined)
+            c if c.is_alphabetic() | (c == '_') => self.next_identifier(),
+
+            // start of an integer (`10` means base-10 here)
+            c if c.is_digit(10) => Token {
+                type_: TokenType::INT,
+                literal: self.read_number(),
+            },
+
+            // whitespace
+            c if c.is_whitespace() => Token {
+                type_: TokenType::WHITESPACE,
+                literal: self.read_whitespace(),
+            },
+
+            // unknown token
+            _ => Token {
+                type_: TokenType::UNKNOWN,
                 literal: self.ch.to_string(),
             },
         };
