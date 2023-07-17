@@ -22,6 +22,8 @@ enum TokenType {
 
     LT,
     GT,
+    EQ,
+    NOT_EQ,
 
     // delimeters
     COMMA,
@@ -40,9 +42,6 @@ enum TokenType {
     ELSE,
     TRUE,
     FALSE,
-
-    // whitespace
-    WHITESPACE,
 }
 
 #[derive(Debug)]
@@ -76,7 +75,7 @@ impl Lexer {
     fn read_char(&mut self) {
         // Note: This assumes all input chars are ASCII!
         if self.read_position >= self.input.len() {
-            self.ch = char::default(); // ASCII null char
+            self.ch = '\0';
         } else {
             // Note: This assumes all input chars are ASCII!
             self.ch = self.input.as_bytes()[self.read_position] as char;
@@ -89,7 +88,6 @@ impl Lexer {
     fn read_identifier(&mut self) -> String {
         let start_position = self.position;
         while self.ch.is_alphanumeric() | (self.ch == '_') {
-            println!("{}", self.ch);
             self.read_char();
         }
 
@@ -105,13 +103,20 @@ impl Lexer {
         return self.input[start_position..self.position].to_string();
     }
 
-    fn read_whitespace(&mut self) -> String {
-        let start_position = self.position;
+    fn skip_whitespace(&mut self) {
         while self.ch.is_whitespace() {
             self.read_char();
         }
+    }
 
-        return self.input[start_position..self.position].to_string();
+    fn peek_char(&mut self) -> char {
+        // Note: This assumes all input chars are ASCII!
+        if self.read_position >= self.input.len() {
+            return '\0';
+        }
+
+        // Note: This assumes all input chars are ASCII!
+        return self.input.as_bytes()[self.read_position] as char;
     }
 
     fn next_char(&mut self) -> Token {
@@ -225,11 +230,46 @@ impl Lexer {
     }
 
     pub fn next_token(&mut self) -> Token {
-        println!("{}", self.ch);
+        self.skip_whitespace();
+
         let token: Token = match self.ch {
             // single-char tokens
-            '=' | '+' | '-' | '*' | '/' | '<' | '>' | '!' | ';' | '(' | ')' | ',' | '{' | '}' => {
+            '+' | '-' | '*' | '/' | '<' | '>' | ';' | '(' | ')' | ',' | '{' | '}' => {
                 self.next_char()
+            }
+
+            // single-char or double-char tokens
+            '=' => {
+                if self.peek_char() == '=' {
+                    self.read_char();
+                    self.read_char();
+                    Token {
+                        type_: TokenType::EQ,
+                        literal: "==".to_string(),
+                    }
+                } else {
+                    self.read_char();
+                    Token {
+                        type_: TokenType::ASSIGN,
+                        literal: "=".to_string(),
+                    }
+                }
+            }
+            '!' => {
+                if self.peek_char() == '=' {
+                    self.read_char();
+                    self.read_char();
+                    Token {
+                        type_: TokenType::NOT_EQ,
+                        literal: "!=".to_string(),
+                    }
+                } else {
+                    self.read_char();
+                    Token {
+                        type_: TokenType::BANG,
+                        literal: "!".to_string(),
+                    }
+                }
             }
 
             // start of an identifier (keyword or user-defined)
@@ -241,12 +281,11 @@ impl Lexer {
                 literal: self.read_number(),
             },
 
-            // whitespace
-            c if c.is_whitespace() => Token {
-                type_: TokenType::WHITESPACE,
-                literal: self.read_whitespace(),
+            // EOF
+            '\0' => Token {
+                type_: TokenType::UNKNOWN,
+                literal: self.ch.to_string(),
             },
-
             // unknown token
             _ => Token {
                 type_: TokenType::UNKNOWN,
