@@ -1,5 +1,5 @@
 #[cfg(test)]
-// Note: Rust resolves this to `token/tests.rs` and tests becomes a sub-module
+// Note: Rust resolves this to `lexer/tests.rs` and tests becomes a sub-module
 // which means it can access private members.
 mod tests;
 
