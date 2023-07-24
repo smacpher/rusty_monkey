@@ -3,8 +3,9 @@
 // which means it can access private members.
 mod tests;
 
+// TODO: Convert to UpperCamelCase.
 #[derive(Debug, PartialEq)]
-enum TokenType {
+pub enum TokenType {
     UNKNOWN,
     EOF,
 
@@ -45,12 +46,12 @@ enum TokenType {
 }
 
 #[derive(Debug)]
-struct Token {
-    type_: TokenType,
-    literal: String,
+pub struct Token {
+    pub type_: TokenType,
+    pub literal: String,
 }
 
-struct Lexer {
+pub struct Lexer {
     input: String,
     position: usize,      // points to the position corresponding to `ch`
     read_position: usize, // points to the next position we'll read, allows us to peek further
@@ -58,7 +59,7 @@ struct Lexer {
 }
 
 impl Lexer {
-    fn new(input: String) -> Self {
+    pub fn new(input: String) -> Self {
         let mut lexer = Self {
             input,
             position: 0,
@@ -283,7 +284,7 @@ impl Lexer {
 
             // EOF
             '\0' => Token {
-                type_: TokenType::UNKNOWN,
+                type_: TokenType::EOF,
                 literal: self.ch.to_string(),
             },
             // unknown token
