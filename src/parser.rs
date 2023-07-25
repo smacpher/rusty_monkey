@@ -4,9 +4,9 @@ use super::lexer;
 #[cfg(test)]
 mod tests;
 
-// Note: `'a'` must outlive an instance of `Parser`. i.e. the `Lexer`
-// referenced by `lexer` must not be destroyed before its referencing
-// `Parser` object is.
+// Note: Templating `Parser` with the lifetime annotation `'a` tells the
+// Rust compiler that `lexer` mustn't be destroyed
+// before its referencing `Parser` object is.
 struct Parser<'a> {
     lexer: &'a mut lexer::Lexer,
     current_token: lexer::Token,
