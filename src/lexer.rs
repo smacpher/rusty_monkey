@@ -4,7 +4,7 @@
 mod tests;
 
 // TODO: Convert to UpperCamelCase.
-#[derive(Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum TokenType {
     UNKNOWN,
     EOF,
@@ -45,7 +45,7 @@ pub enum TokenType {
     FALSE,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Token {
     pub type_: TokenType,
     pub literal: String,

@@ -53,3 +53,58 @@ Tokens have original source code representation attached. Could also attach
 line number, column number, and filename to token to make error messages
 better. And also include whitespace to use to autoformat.
 
+## Parsing
+
+Parsing is the process of taking an input (usually raw text or tokens
+produced by a lexer) and creating a data structure to represent that input,
+validating that the input adheres to a syntax along the way.
+
+Interpreters and compilers almost always use a data structured called an
+"abstract syntax tree" ("AST") to represent source code. It's "abstract" b/c
+not all details from the source code are included in the syntax tree. For
+example, whitespace and delimeters usually aren't represented in the AST, but
+are used to inform how the parser should build the AST.
+
+Example. Assume we have the following source code:
+
+```javascript
+if (3 * 5 > 10) {
+  return "hello";
+} else {
+  return "goodbye";
+}
+```
+
+A hypothetical lexer and parser might produce something like this:
+
+```javascript
+var input = "..." // source code from above
+var tokens = MagixLexer.parse(input);
+MagicParser.parse(tokens);
+```
+
+```javascript
+{
+  type: "if-statement",
+  condition: {
+    type: "operator-expression",
+    operator: ">",
+    left: {
+      type: "operator-expression",
+      operator: "*",
+      left: { type: "integer-literal", value: 3 },
+      right: { type: "integer-literal", value: 5 }
+    },
+    right: { type: "integer-literal", value: 10 }
+  },
+  consequence: {
+    type: "return-statement",
+    returnValue: { type: "string-literal", value: "hello" }
+  },
+  alternative: {
+    type: "return-statement",
+    returnValue: { type: "string-literal", value: "goodbye" }
+  }
+}
+```
+
