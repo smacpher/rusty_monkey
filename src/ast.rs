@@ -44,7 +44,6 @@ impl Program {
     }
 }
 
-
 #[derive(Debug, PartialEq)]
 pub enum Statement {
     LetStatement(LetStatement),

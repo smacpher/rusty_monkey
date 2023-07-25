@@ -11,6 +11,9 @@ struct Parser<'a> {
     lexer: &'a mut lexer::Lexer,
     current_token: lexer::Token,
     peek_token: lexer::Token,
+
+    // Errors that are found during parsing.
+    errors: Vec<String>,
 }
 
 // Note: Define a new lifetime parameter `'a` for the entire `impl` block,
@@ -24,6 +27,7 @@ impl<'a> Parser<'a> {
             lexer: lexer,
             current_token: first_token,
             peek_token: second_token,
+            errors: Vec::new(),
         };
 
         return parser;
@@ -35,13 +39,17 @@ impl<'a> Parser<'a> {
         self.current_token = self.peek_token.clone();
         self.peek_token = self.lexer.next_token();
     }
-    
+
     fn expect_peek(&mut self, token_type: lexer::TokenType) -> bool {
         if self.peek_token.type_ == token_type {
             self.next_token();
             return true;
         }
 
+        self.errors.push(format!(
+            "expected next token to be {:?}, got {:?} instead",
+            token_type, self.peek_token.type_
+        ));
         return false;
     }
 
@@ -77,8 +85,8 @@ impl<'a> Parser<'a> {
     fn parse_statement(&mut self) -> Option<ast::Statement> {
         match self.current_token.type_ {
             lexer::TokenType::LET => {
-                let statement = self.parse_let_statement(); 
-                
+                let statement = self.parse_let_statement();
+
                 match statement {
                     Some(s) => Some(ast::Statement::LetStatement(s)),
                     None => None,
