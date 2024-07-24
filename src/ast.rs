@@ -1,5 +1,8 @@
 use super::lexer::Token;
 
+#[cfg(test)]
+mod tests;
+
 // an AST node
 #[derive(Debug, PartialEq)]
 pub enum Node {
@@ -14,6 +17,14 @@ impl Node {
             Node::Program(n) => n.token_literal(),
             Node::Statement(n) => n.token_literal(),
             Node::Expression(n) => n.token_literal(),
+        }
+    }
+
+    pub fn string(&self) -> String {
+        match self {
+            Node::Program(n) => n.string(),
+            Node::Statement(n) => n.string(),
+            Node::Expression(n) => n.string(),
         }
     }
 }
@@ -42,17 +53,37 @@ impl Program {
         }
         return "";
     }
+
+    pub fn string(&self) -> String {
+        let mut out = String::new();
+
+        for statement in self.statements.iter() {
+            out.push_str(statement.string().as_str());
+        }
+
+        return out;
+    }
 }
 
 #[derive(Debug, PartialEq)]
 pub enum Statement {
     LetStatement(LetStatement),
+    ReturnStatement(ReturnStatement),
 }
 
 impl Statement {
     pub fn token_literal(&self) -> &str {
         match self {
+            // Can these be consolidated?
             Statement::LetStatement(s) => s.token_literal(),
+            Statement::ReturnStatement(s) => s.token_literal(),
+        }
+    }
+
+    pub fn string(&self) -> String {
+        match self {
+            Statement::LetStatement(s) => s.string(),
+            Statement::ReturnStatement(s) => s.string(),
         }
     }
 }
@@ -66,13 +97,21 @@ pub enum Expression {
 impl Expression {
     pub fn token_literal(&self) -> &str {
         match self {
-            Expression::Identifier(e) => e.token_literal(),
             Expression::Empty => "",
+            Expression::Identifier(e) => e.token_literal(),
+        }
+    }
+
+    pub fn string(&self) -> String {
+        match self {
+            Expression::Empty => String::new(),
+            Expression::Identifier(e) => e.string(),
         }
     }
 }
 
 // statement node types
+// Let statement. ex: `let x = 5;`
 #[derive(Debug, PartialEq)]
 pub struct LetStatement {
     pub token: Token,
@@ -83,6 +122,60 @@ pub struct LetStatement {
 impl LetStatement {
     pub fn token_literal(&self) -> &str {
         return &self.token.literal;
+    }
+
+    pub fn string(&self) -> String {
+        let mut out = String::new();
+
+        out.push_str(self.token_literal());
+        out.push_str(" ");
+        out.push_str(self.name.string().as_str());
+        out.push_str(" = ");
+        out.push_str(self.value.string().as_str());
+        out.push_str(";");
+
+        return out;
+    }
+}
+
+// Return statement. ex: `return 5;`
+#[derive(Debug, PartialEq)]
+pub struct ReturnStatement {
+    pub token: Token,
+    pub return_value: Expression,
+}
+
+impl ReturnStatement {
+    pub fn token_literal(&self) -> &str {
+        return &self.token.literal;
+    }
+
+    pub fn string(&self) -> String {
+        let mut out = String::new();
+
+        out.push_str(self.token_literal());
+        out.push_str(" ");
+        out.push_str(self.return_value.string().as_str());
+        out.push_str(";");
+
+        return out;
+    }
+}
+
+// Expression statement. ex: `x + 10;`
+#[derive(Debug, PartialEq)]
+pub struct ExpressionStatement {
+    pub token: Token,
+    pub expression: Expression,
+}
+
+impl ExpressionStatement {
+    pub fn token_literal(&self) -> &str {
+        return &self.token.literal;
+    }
+
+    pub fn string(&self) -> String {
+        return self.expression.string();
     }
 }
 
@@ -97,5 +190,9 @@ pub struct Identifier {
 impl Identifier {
     pub fn token_literal(&self) -> &str {
         return &self.token.literal;
+    }
+
+    pub fn string(&self) -> String {
+        return self.value.clone();
     }
 }

@@ -61,4 +61,28 @@ mod tests {
             assert_eq!(actual_error, expected_error);
         }
     }
+
+    #[test]
+    fn test_return_statements() {
+        let input = "
+        return 5;
+        return 10;
+        return 1234;
+        ";
+
+        let mut lexer = lexer::Lexer::new(input.to_string());
+        let mut parser = Parser::new(&mut lexer);
+
+        let program: ast::Program = parser.parse_program();
+
+        assert_eq!(program.statements.len(), 3);
+        for i in 0..3 {
+            let actual_statement = &program.statements[i];
+
+            match actual_statement {
+                ast::Statement::ReturnStatement(s) => {}
+                _ => panic!("expected `ReturnStatement`, got {:?}", actual_statement),
+            }
+        }
+    }
 }

@@ -1,8 +1,12 @@
 use super::ast;
 use super::lexer;
+use std::collections::HashMap;
 
 #[cfg(test)]
 mod tests;
+
+type PrefixParseFn = fn() -> ast::Expression;
+type InfixParseFn = fn(&ast::Expression) -> ast::Expression;
 
 // Note: Templating `Parser` with the lifetime annotation `'a` tells the
 // Rust compiler that `lexer` mustn't be destroyed
@@ -14,6 +18,9 @@ struct Parser<'a> {
 
     // Errors that are found during parsing.
     errors: Vec<String>,
+
+    prefix_parse_fns: HashMap<lexer::TokenType, PrefixParseFn>,
+    infix_parse_fns: HashMap<lexer::TokenType, InfixParseFn>,
 }
 
 // Note: Define a new lifetime parameter `'a` for the entire `impl` block,
@@ -28,9 +35,23 @@ impl<'a> Parser<'a> {
             current_token: first_token,
             peek_token: second_token,
             errors: Vec::new(),
+            prefix_parse_fns: HashMap::new(),
+            infix_parse_fns: HashMap::new(),
         };
 
         return parser;
+    }
+
+    pub fn register_prefix(
+        &mut self,
+        token_type: lexer::TokenType,
+        prefix_parse_fn: PrefixParseFn,
+    ) {
+        self.prefix_parse_fns.insert(token_type, prefix_parse_fn);
+    }
+
+    pub fn register_infix(&mut self, token_type: lexer::TokenType, infix_parse_fn: InfixParseFn) {
+        self.infix_parse_fns.insert(token_type, infix_parse_fn);
     }
 
     // Note: Take ownership of `self` instead of borrowing it so we can move
@@ -82,6 +103,21 @@ impl<'a> Parser<'a> {
         });
     }
 
+    fn parse_return_statement(&mut self) -> Option<ast::ReturnStatement> {
+        let return_token = self.current_token.clone();
+
+        self.next_token();
+
+        while self.current_token.type_ != lexer::TokenType::SEMICOLON {
+            self.next_token();
+        }
+
+        return Some(ast::ReturnStatement {
+            token: return_token,
+            return_value: ast::Expression::Empty,
+        });
+    }
+
     fn parse_statement(&mut self) -> Option<ast::Statement> {
         match self.current_token.type_ {
             lexer::TokenType::LET => {
@@ -89,6 +125,14 @@ impl<'a> Parser<'a> {
 
                 match statement {
                     Some(s) => Some(ast::Statement::LetStatement(s)),
+                    None => None,
+                }
+            }
+            lexer::TokenType::RETURN => {
+                let statement = self.parse_return_statement();
+
+                match statement {
+                    Some(s) => Some(ast::Statement::ReturnStatement(s)),
                     None => None,
                 }
             }

@@ -4,7 +4,7 @@
 mod tests;
 
 // TODO: Convert to UpperCamelCase.
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum TokenType {
     UNKNOWN,
     EOF,
