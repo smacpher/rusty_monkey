@@ -69,6 +69,7 @@ impl Program {
 pub enum Statement {
     LetStatement(LetStatement),
     ReturnStatement(ReturnStatement),
+    ExpressionStatement(ExpressionStatement),
 }
 
 impl Statement {
@@ -84,28 +85,6 @@ impl Statement {
         match self {
             Statement::LetStatement(s) => s.string(),
             Statement::ReturnStatement(s) => s.string(),
-        }
-    }
-}
-
-#[derive(Debug, PartialEq)]
-pub enum Expression {
-    Empty,
-    Identifier(Identifier),
-}
-
-impl Expression {
-    pub fn token_literal(&self) -> &str {
-        match self {
-            Expression::Empty => "",
-            Expression::Identifier(e) => e.token_literal(),
-        }
-    }
-
-    pub fn string(&self) -> String {
-        match self {
-            Expression::Empty => String::new(),
-            Expression::Identifier(e) => e.string(),
         }
     }
 }
@@ -180,6 +159,29 @@ impl ExpressionStatement {
 }
 
 // expression node types
+#[derive(Debug, PartialEq)]
+pub enum Expression {
+    Empty,
+    Identifier(Identifier),
+}
+
+impl Expression {
+    pub fn token_literal(&self) -> &str {
+        match self {
+            Expression::Empty => "",
+            Expression::Identifier(e) => e.token_literal(),
+        }
+    }
+
+    pub fn string(&self) -> String {
+        match self {
+            Expression::Empty => String::new(),
+            Expression::Identifier(e) => e.string(),
+        }
+    }
+}
+
+
 // Represents both an LHS and RHS identifier for simplicity.
 #[derive(Debug, PartialEq)]
 pub struct Identifier {

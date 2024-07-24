@@ -85,4 +85,22 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn test_identifier_expression() {
+        let input = "foobar;";
+
+        let mut lexer = lexer::Lexer::new(input.to_string());
+        let mut parser = Parser::new(&mut lexer);
+
+        let program: ast::Program = parser.parse_program();
+
+        assert_eq!(program.statements.len(), 1);
+        let actual_statement = program.statements[0];
+
+        match actual_statement {
+            ast::Statement::ExpressionStatement { token: lexer::Token { type_: lexer::TokenType::IDENT, literal: "foobar".to_string()}, value: "foobar" } => {}
+            _ => panic!("expected `ExpressionStatement`, got {:?}", actual_statement),
+        }
+    }
 }
