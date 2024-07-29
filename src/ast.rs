@@ -78,6 +78,7 @@ impl Statement {
             // Can these be consolidated?
             Statement::LetStatement(s) => s.token_literal(),
             Statement::ReturnStatement(s) => s.token_literal(),
+            Statement::ExpressionStatement(s) => s.token_literal(),
         }
     }
 
@@ -85,6 +86,7 @@ impl Statement {
         match self {
             Statement::LetStatement(s) => s.string(),
             Statement::ReturnStatement(s) => s.string(),
+            Statement::ExpressionStatement(s) => s.string(),
         }
     }
 }
@@ -163,6 +165,7 @@ impl ExpressionStatement {
 pub enum Expression {
     Empty,
     Identifier(Identifier),
+    IntegerLiteral(IntegerLiteral),
 }
 
 impl Expression {
@@ -170,6 +173,7 @@ impl Expression {
         match self {
             Expression::Empty => "",
             Expression::Identifier(e) => e.token_literal(),
+            Expression::IntegerLiteral(e) => e.token_literal(),
         }
     }
 
@@ -177,10 +181,10 @@ impl Expression {
         match self {
             Expression::Empty => String::new(),
             Expression::Identifier(e) => e.string(),
+            Expression::IntegerLiteral(e) => e.string(),
         }
     }
 }
-
 
 // Represents both an LHS and RHS identifier for simplicity.
 #[derive(Debug, PartialEq)]
@@ -196,5 +200,21 @@ impl Identifier {
 
     pub fn string(&self) -> String {
         return self.value.clone();
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct IntegerLiteral {
+    pub token: Token,
+    pub value: i64,
+}
+
+impl IntegerLiteral {
+    pub fn token_literal(&self) -> &str {
+        return &self.token.literal;
+    }
+
+    pub fn string(&self) -> String {
+        return self.value.to_string();
     }
 }

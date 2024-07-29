@@ -47,7 +47,7 @@ mod tests {
         let mut lexer = lexer::Lexer::new(input.to_string());
         let mut parser = Parser::new(&mut lexer);
 
-        let program: ast::Program = parser.parse_program();
+        let _: ast::Program = parser.parse_program();
         let expected_errors = vec![
             "expected next token to be ASSIGN, got INT instead",
             "expected next token to be IDENT, got ASSIGN instead",
@@ -80,7 +80,7 @@ mod tests {
             let actual_statement = &program.statements[i];
 
             match actual_statement {
-                ast::Statement::ReturnStatement(s) => {}
+                ast::Statement::ReturnStatement(_) => {}
                 _ => panic!("expected `ReturnStatement`, got {:?}", actual_statement),
             }
         }
@@ -96,10 +96,54 @@ mod tests {
         let program: ast::Program = parser.parse_program();
 
         assert_eq!(program.statements.len(), 1);
-        let actual_statement = program.statements[0];
+        let actual_statement = &program.statements[0];
 
+        let expected_token = lexer::Token {
+            type_: lexer::TokenType::IDENT,
+            literal: "foobar".to_string(),
+        };
         match actual_statement {
-            ast::Statement::ExpressionStatement { token: lexer::Token { type_: lexer::TokenType::IDENT, literal: "foobar".to_string()}, value: "foobar" } => {}
+            ast::Statement::ExpressionStatement(s) => {
+                assert_eq!(s.token, expected_token);
+                assert_eq!(
+                    s.expression,
+                    ast::Expression::Identifier(ast::Identifier {
+                        token: expected_token,
+                        value: "foobar".to_string()
+                    })
+                );
+            }
+            _ => panic!("expected `ExpressionStatement`, got {:?}", actual_statement),
+        }
+    }
+
+    #[test]
+    fn test_integer_expression() {
+        let input = "5;";
+
+        let mut lexer = lexer::Lexer::new(input.to_string());
+        let mut parser = Parser::new(&mut lexer);
+
+        let program: ast::Program = parser.parse_program();
+
+        assert_eq!(program.statements.len(), 1);
+        let actual_statement = &program.statements[0];
+
+        let expected_token = lexer::Token {
+            type_: lexer::TokenType::INT,
+            literal: "5".to_string(),
+        };
+        match actual_statement {
+            ast::Statement::ExpressionStatement(s) => {
+                assert_eq!(s.token, expected_token);
+                assert_eq!(
+                    s.expression,
+                    ast::Expression::IntegerLiteral(ast::IntegerLiteral {
+                        token: expected_token,
+                        value: 5,
+                    })
+                );
+            }
             _ => panic!("expected `ExpressionStatement`, got {:?}", actual_statement),
         }
     }
