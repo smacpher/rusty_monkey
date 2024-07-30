@@ -166,6 +166,7 @@ pub enum Expression {
     Empty,
     Identifier(Identifier),
     IntegerLiteral(IntegerLiteral),
+    PrefixExpression(PrefixExpression),
 }
 
 impl Expression {
@@ -174,6 +175,7 @@ impl Expression {
             Expression::Empty => "",
             Expression::Identifier(e) => e.token_literal(),
             Expression::IntegerLiteral(e) => e.token_literal(),
+            Expression::PrefixExpression(e) => e.token_literal(),
         }
     }
 
@@ -182,6 +184,7 @@ impl Expression {
             Expression::Empty => String::new(),
             Expression::Identifier(e) => e.string(),
             Expression::IntegerLiteral(e) => e.string(),
+            Expression::PrefixExpression(e) => e.string(),
         }
     }
 }
@@ -216,5 +219,38 @@ impl IntegerLiteral {
 
     pub fn string(&self) -> String {
         return self.value.to_string();
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct PrefixExpression {
+    pub token: Token,
+    pub operator: String,
+
+    // Introduce indirection with a `Box` (i.e. pointer) to break cycle between
+    // `PrefixExpression` <-> `Expression`.
+    pub right: Option<Box<Expression>>,
+}
+
+impl PrefixExpression {
+    pub fn token_literal(&self) -> &str {
+        return &self.token.literal;
+    }
+
+    pub fn string(&self) -> String {
+        let mut out = String::new();
+
+        let right_str = if let Some(e) = &self.right {
+            e.string()
+        } else {
+            String::from("~missing~")
+        };
+
+        out.push_str("(");
+        out.push_str(self.operator.as_str());
+        out.push_str(right_str.as_str());
+        out.push_str(")");
+
+        return out;
     }
 }

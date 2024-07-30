@@ -47,7 +47,7 @@ impl<'a> Parser<'a> {
             infix_parse_fns: HashMap::new(),
         };
 
-        // Register expression parsing functions.
+        // Register expression parsing functions for prefix tokens.
         parser
             .prefix_parse_fns
             .insert(lexer::TokenType::IDENT, |p: &mut Parser| {
@@ -57,6 +57,16 @@ impl<'a> Parser<'a> {
             .prefix_parse_fns
             .insert(lexer::TokenType::INT, |p: &mut Parser| {
                 p.parse_integer_literal()
+            });
+        parser
+            .prefix_parse_fns
+            .insert(lexer::TokenType::BANG, |p: &mut Parser| {
+                p.parse_prefix_expression()
+            });
+        parser
+            .prefix_parse_fns
+            .insert(lexer::TokenType::MINUS, |p: &mut Parser| {
+                p.parse_prefix_expression()
             });
 
         return parser;
@@ -121,6 +131,27 @@ impl<'a> Parser<'a> {
         }));
     }
 
+    fn parse_prefix_expression(&mut self) -> Option<ast::Expression> {
+        let token = self.current_token.clone();
+        let operator = self.current_token.literal.clone();
+        self.next_token();
+        let right = self.parse_expression(PREFIX);
+
+        // Introduce indirection with a `Box` (i.e. pointer) to break cycle between
+        // `PrefixExpression` <-> `Expression`.
+        let boxed_right = if let Some(e) = right {
+            Some(Box::new(e))
+        } else {
+            None
+        };
+
+        return Some(ast::Expression::PrefixExpression(ast::PrefixExpression {
+            token: token,
+            operator: operator,
+            right: boxed_right,
+        }));
+    }
+
     fn parse_expression(&mut self, precedence: u8) -> Option<ast::Expression> {
         let prefix_parse_fn = self.prefix_parse_fns.get(&self.current_token.type_);
 
@@ -129,6 +160,10 @@ impl<'a> Parser<'a> {
                 return f(self);
             }
             None => {
+                self.errors.push(format!(
+                    "no prefix parse function for {:?} found",
+                    self.current_token.type_
+                ));
                 return None;
             }
         }
