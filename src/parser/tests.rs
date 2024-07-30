@@ -159,13 +159,13 @@ mod tests {
         struct TestCase {
             input: String,
             expected_operator: String,
-            expected_integer_value: i64,
+            expected_right: i64,
         }
 
         let test_cases = vec![TestCase {
             input: String::from("!5"),
             expected_operator: String::from("!"),
-            expected_integer_value: 5,
+            expected_right: 5,
         }];
         for test_case in test_cases.iter() {
             let mut lexer = lexer::Lexer::new(test_case.input.clone());
@@ -191,9 +191,114 @@ mod tests {
                                 ast::IntegerLiteral {
                                     token: lexer::Token {
                                         type_: lexer::TokenType::INT,
-                                        literal: test_case.expected_integer_value.to_string(),
+                                        literal: test_case.expected_right.to_string(),
                                     },
-                                    value: test_case.expected_integer_value,
+                                    value: test_case.expected_right,
+                                }
+                            ))),
+                        }),
+                    );
+                }
+                _ => panic!("expected `ExpressionStatement`, got {:?}", actual_statement),
+            }
+        }
+    }
+
+    #[test]
+    fn test_infix_expressions() {
+        struct TestCase {
+            input: String,
+            expected_operator: String,
+            expected_left: i64,
+            expected_right: i64,
+        }
+
+        let test_cases = vec![
+            TestCase {
+                input: String::from("4 + 5"),
+                expected_operator: String::from("+"),
+                expected_left: 4,
+                expected_right: 5,
+            },
+            TestCase {
+                input: String::from("4 - 5"),
+                expected_operator: String::from("-"),
+                expected_left: 4,
+                expected_right: 5,
+            },
+            TestCase {
+                input: String::from("4 * 5"),
+                expected_operator: String::from("*"),
+                expected_left: 4,
+                expected_right: 5,
+            },
+            TestCase {
+                input: String::from("4 / 5"),
+                expected_operator: String::from("/"),
+                expected_left: 4,
+                expected_right: 5,
+            },
+            TestCase {
+                input: String::from("4 > 5"),
+                expected_operator: String::from(">"),
+                expected_left: 4,
+                expected_right: 5,
+            },
+            TestCase {
+                input: String::from("4 < 5"),
+                expected_operator: String::from("<"),
+                expected_left: 4,
+                expected_right: 5,
+            },
+            TestCase {
+                input: String::from("4 == 5"),
+                expected_operator: String::from("=="),
+                expected_left: 4,
+                expected_right: 5,
+            },
+            TestCase {
+                input: String::from("4 != 5"),
+                expected_operator: String::from("!="),
+                expected_left: 4,
+                expected_right: 5,
+            },
+        ];
+        for test_case in test_cases.iter() {
+            let mut lexer = lexer::Lexer::new(test_case.input.clone());
+            let mut parser = Parser::new(&mut lexer);
+
+            let program: ast::Program = parser.parse_program();
+            check_parser_errors(&parser);
+
+            assert_eq!(program.statements.len(), 1);
+            let actual_statement = &program.statements[0];
+
+            match actual_statement {
+                ast::Statement::ExpressionStatement(s) => {
+                    assert_eq!(
+                        s.expression,
+                        ast::Expression::InfixExpression(ast::InfixExpression {
+                            token: lexer::Token {
+                                type_: lexer::TokenType::BANG,
+                                literal: test_case.expected_operator.clone(),
+                            },
+                            operator: test_case.expected_operator.clone(),
+                            left: Some(Box::new(ast::Expression::IntegerLiteral(
+                                ast::IntegerLiteral {
+                                    token: lexer::Token {
+                                        type_: lexer::TokenType::INT,
+                                        literal: test_case.expected_left.to_string(),
+                                    },
+                                    value: test_case.expected_left,
+                                }
+                            ))),
+                            right: Some(Box::new(ast::Expression::IntegerLiteral(
+                                ast::IntegerLiteral {
+                                    token: lexer::Token {
+                                        type_: lexer::TokenType::INT,
+                                        literal: test_case.expected_right.to_string(),
+                                    },
+                                    value: test_case.expected_right,
                                 }
                             ))),
                         }),

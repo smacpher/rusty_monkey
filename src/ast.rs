@@ -92,7 +92,8 @@ impl Statement {
 }
 
 // statement node types
-// Let statement. ex: `let x = 5;`
+// let <identifier> = <expression>
+// ex: `let x = 5;`
 #[derive(Debug, PartialEq)]
 pub struct LetStatement {
     pub token: Token,
@@ -119,7 +120,8 @@ impl LetStatement {
     }
 }
 
-// Return statement. ex: `return 5;`
+// return <expression>
+// ex: return 5;
 #[derive(Debug, PartialEq)]
 pub struct ReturnStatement {
     pub token: Token,
@@ -143,7 +145,9 @@ impl ReturnStatement {
     }
 }
 
-// Expression statement. ex: `x + 10;`
+// <expression>
+// ex: x + 10;
+// notes: useful in the REPL
 #[derive(Debug, PartialEq)]
 pub struct ExpressionStatement {
     pub token: Token,
@@ -167,6 +171,7 @@ pub enum Expression {
     Identifier(Identifier),
     IntegerLiteral(IntegerLiteral),
     PrefixExpression(PrefixExpression),
+    InfixExpression(InfixExpression),
 }
 
 impl Expression {
@@ -176,6 +181,7 @@ impl Expression {
             Expression::Identifier(e) => e.token_literal(),
             Expression::IntegerLiteral(e) => e.token_literal(),
             Expression::PrefixExpression(e) => e.token_literal(),
+            Expression::InfixExpression(e) => e.token_literal(),
         }
     }
 
@@ -185,11 +191,14 @@ impl Expression {
             Expression::Identifier(e) => e.string(),
             Expression::IntegerLiteral(e) => e.string(),
             Expression::PrefixExpression(e) => e.string(),
+            Expression::InfixExpression(e) => e.string(),
         }
     }
 }
 
-// Represents both an LHS and RHS identifier for simplicity.
+// <identifier>
+// ex: foo
+// notes: represents both an LHS and RHS identifier for simplicity.
 #[derive(Debug, PartialEq)]
 pub struct Identifier {
     pub token: Token,
@@ -206,6 +215,8 @@ impl Identifier {
     }
 }
 
+// <integer>
+// ex: 5
 #[derive(Debug, PartialEq)]
 pub struct IntegerLiteral {
     pub token: Token,
@@ -222,13 +233,16 @@ impl IntegerLiteral {
     }
 }
 
+// <prefix operator> <expression>
+// ex: -5
 #[derive(Debug, PartialEq)]
 pub struct PrefixExpression {
     pub token: Token,
     pub operator: String,
 
     // Introduce indirection with a `Box` (i.e. pointer) to break cycle between
-    // `PrefixExpression` <-> `Expression`.
+    // `PrefixExpression` <-> `Expression` so Rust can determine the size of the
+    // struct at compile time.
     pub right: Option<Box<Expression>>,
 }
 
@@ -247,6 +261,48 @@ impl PrefixExpression {
         };
 
         out.push_str("(");
+        out.push_str(self.operator.as_str());
+        out.push_str(right_str.as_str());
+        out.push_str(")");
+
+        return out;
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct InfixExpression {
+    pub token: Token,
+    pub operator: String,
+
+    // Introduce indirection with a `Box` (i.e. pointer) to break cycle between
+    // `PrefixExpression` <-> `Expression` so Rust can determine the size of the
+    // struct at compile time.
+    pub left: Option<Box<Expression>>,
+    pub right: Option<Box<Expression>>,
+}
+
+impl InfixExpression {
+    pub fn token_literal(&self) -> &str {
+        return &self.token.literal;
+    }
+
+    pub fn string(&self) -> String {
+        let mut out = String::new();
+
+        let right_str = if let Some(e) = &self.right {
+            e.string()
+        } else {
+            String::from("~missing~")
+        };
+
+        let left_str = if let Some(e) = &self.left {
+            e.string()
+        } else {
+            String::from("~missing~")
+        };
+
+        out.push_str("(");
+        out.push_str(left_str.as_str());
         out.push_str(self.operator.as_str());
         out.push_str(right_str.as_str());
         out.push_str(")");
