@@ -24,7 +24,7 @@ fn token_precedence(token_type: lexer::TokenType) -> u8 {
         lexer::TokenType::LT | lexer::TokenType::GT => LESSGREATER,
         lexer::TokenType::PLUS | lexer::TokenType::MINUS => SUM,
         lexer::TokenType::ASTERISK | lexer::TokenType::SLASH => PRODUCT,
-        _ => panic!("no precedence found for {:?}", token_type),
+        _ => LOWEST,
     };
 }
 
@@ -69,6 +69,16 @@ impl<'a> Parser<'a> {
             .prefix_parse_fns
             .insert(lexer::TokenType::INT, |p: &mut Parser| {
                 p.parse_integer_literal()
+            });
+        parser
+            .prefix_parse_fns
+            .insert(lexer::TokenType::TRUE, |p: &mut Parser| {
+                p.parse_boolean_literal()
+            });
+        parser
+            .prefix_parse_fns
+            .insert(lexer::TokenType::FALSE, |p: &mut Parser| {
+                p.parse_boolean_literal()
             });
         parser
             .prefix_parse_fns
@@ -166,6 +176,24 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn parse_boolean_literal(&mut self) -> Option<ast::Expression> {
+        let mut boolean_value: bool;
+        match self.current_token.type_ {
+            lexer::TokenType::TRUE => {
+                boolean_value = true;
+            }
+            lexer::TokenType::FALSE => {
+                boolean_value = false;
+            }
+            _ => panic!("cannot parse {:?} as boolean", self.current_token.type_),
+        }
+
+        return Some(ast::Expression::BooleanLiteral(ast::BooleanLiteral {
+            token: self.current_token.clone(),
+            value: boolean_value,
+        }));
+    }
+
     fn parse_identifier(&mut self) -> Option<ast::Expression> {
         return Some(ast::Expression::Identifier(ast::Identifier {
             token: self.current_token.clone(),
@@ -204,8 +232,9 @@ impl<'a> Parser<'a> {
             None
         };
 
+        let precedence = self.current_precedence();
         self.next_token();
-        let right = self.parse_expression(PREFIX);
+        let right = self.parse_expression(precedence);
         let boxed_right = if let Some(e) = right {
             Some(Box::new(e))
         } else {
@@ -219,6 +248,7 @@ impl<'a> Parser<'a> {
             right: boxed_right,
         }));
     }
+
     fn parse_expression(&mut self, precedence: u8) -> Option<ast::Expression> {
         let prefix_parse_fn = self.prefix_parse_fns.get(&self.current_token.type_);
         let mut left: Option<ast::Expression> = if let Some(f) = prefix_parse_fn {
@@ -234,7 +264,7 @@ impl<'a> Parser<'a> {
         while self.peek_token.type_ != lexer::TokenType::SEMICOLON
             && precedence < self.peek_precedence()
         {
-            if let Some(infix_parse_fn) = self.infix_parse_fns.get(&self.current_token.type_) {
+            if let Some(infix_parse_fn) = self.infix_parse_fns.get(&self.peek_token.type_) {
                 // todo: remove this hack to get around borrow checker
                 let f = *infix_parse_fn;
                 self.next_token();

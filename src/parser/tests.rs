@@ -208,7 +208,7 @@ mod tests {
     fn test_infix_expressions() {
         struct TestCase {
             input: String,
-            expected_operator: String,
+            expected_operator: lexer::Token,
             expected_left: i64,
             expected_right: i64,
         }
@@ -216,49 +216,73 @@ mod tests {
         let test_cases = vec![
             TestCase {
                 input: String::from("4 + 5"),
-                expected_operator: String::from("+"),
+                expected_operator: lexer::Token {
+                    type_: lexer::TokenType::PLUS,
+                    literal: String::from("+"),
+                },
                 expected_left: 4,
                 expected_right: 5,
             },
             TestCase {
                 input: String::from("4 - 5"),
-                expected_operator: String::from("-"),
+                expected_operator: lexer::Token {
+                    type_: lexer::TokenType::MINUS,
+                    literal: String::from("-"),
+                },
                 expected_left: 4,
                 expected_right: 5,
             },
             TestCase {
                 input: String::from("4 * 5"),
-                expected_operator: String::from("*"),
+                expected_operator: lexer::Token {
+                    type_: lexer::TokenType::ASTERISK,
+                    literal: String::from("*"),
+                },
                 expected_left: 4,
                 expected_right: 5,
             },
             TestCase {
                 input: String::from("4 / 5"),
-                expected_operator: String::from("/"),
+                expected_operator: lexer::Token {
+                    type_: lexer::TokenType::SLASH,
+                    literal: String::from("/"),
+                },
                 expected_left: 4,
                 expected_right: 5,
             },
             TestCase {
                 input: String::from("4 > 5"),
-                expected_operator: String::from(">"),
+                expected_operator: lexer::Token {
+                    type_: lexer::TokenType::GT,
+                    literal: String::from(">"),
+                },
                 expected_left: 4,
                 expected_right: 5,
             },
             TestCase {
                 input: String::from("4 < 5"),
-                expected_operator: String::from("<"),
+                expected_operator: lexer::Token {
+                    type_: lexer::TokenType::LT,
+                    literal: String::from("<"),
+                },
                 expected_left: 4,
                 expected_right: 5,
             },
             TestCase {
                 input: String::from("4 == 5"),
-                expected_operator: String::from("=="),
+                expected_operator: lexer::Token {
+                    type_: lexer::TokenType::EQ,
+                    literal: String::from("=="),
+                },
                 expected_left: 4,
                 expected_right: 5,
             },
             TestCase {
                 input: String::from("4 != 5"),
-                expected_operator: String::from("!="),
+                expected_operator: lexer::Token {
+                    type_: lexer::TokenType::NOT_EQ,
+                    literal: String::from("!="),
+                },
                 expected_left: 4,
                 expected_right: 5,
             },
@@ -278,11 +302,8 @@ mod tests {
                     assert_eq!(
                         s.expression,
                         ast::Expression::InfixExpression(ast::InfixExpression {
-                            token: lexer::Token {
-                                type_: lexer::TokenType::BANG,
-                                literal: test_case.expected_operator.clone(),
-                            },
-                            operator: test_case.expected_operator.clone(),
+                            token: test_case.expected_operator.clone(),
+                            operator: test_case.expected_operator.literal.clone(),
                             left: Some(Box::new(ast::Expression::IntegerLiteral(
                                 ast::IntegerLiteral {
                                     token: lexer::Token {
@@ -306,6 +327,91 @@ mod tests {
                 }
                 _ => panic!("expected `ExpressionStatement`, got {:?}", actual_statement),
             }
+        }
+    }
+
+    #[test]
+    fn test_operator_precedence() {
+        struct TestCase<'a> {
+            input: &'a str,
+            expected: &'a str,
+        }
+
+        let test_cases = vec![
+            TestCase {
+                input: "-a * b",
+                expected: "((-a) * b)",
+            },
+            TestCase {
+                input: "!-a",
+                expected: "(!(-a))",
+            },
+            TestCase {
+                input: "a + b + c",
+                expected: "((a + b) + c)",
+            },
+            TestCase {
+                input: "a + b - c",
+                expected: "((a + b) - c)",
+            },
+            TestCase {
+                input: "a * b * c",
+                expected: "((a * b) * c)",
+            },
+            TestCase {
+                input: "a * b / c",
+                expected: "((a * b) / c)",
+            },
+            TestCase {
+                input: "a + b / c",
+                expected: "(a + (b / c))",
+            },
+            TestCase {
+                input: "a + b * c + d / e - f",
+                expected: "(((a + (b * c)) + (d / e)) - f)",
+            },
+            TestCase {
+                input: "3 + 4; -5 * 5",
+                expected: "(3 + 4)((-5) * 5)",
+            },
+            TestCase {
+                input: "5 > 4 == 3 < 4",
+                expected: "((5 > 4) == (3 < 4))",
+            },
+            TestCase {
+                input: "5 < 4 != 3 > 4",
+                expected: "((5 < 4) != (3 > 4))",
+            },
+            TestCase {
+                input: "3 + 4 * 5 == 3 * 1 + 4 * 5",
+                expected: "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))",
+            },
+            TestCase {
+                input: "true",
+                expected: "true",
+            },
+            TestCase {
+                input: "false",
+                expected: "false",
+            },
+            TestCase {
+                input: "3 > 5 == false",
+                expected: "((3 > 5) == false)",
+            },
+            TestCase {
+                input: "3 < 5 == true",
+                expected: "((3 < 5) == true)",
+            },
+        ];
+
+        for test_case in test_cases.iter() {
+            let mut lexer = lexer::Lexer::new(test_case.input.to_string());
+            let mut parser = Parser::new(&mut lexer);
+
+            let program: ast::Program = parser.parse_program();
+            check_parser_errors(&parser);
+
+            assert_eq!(program.string(), test_case.expected.to_string());
         }
     }
 }

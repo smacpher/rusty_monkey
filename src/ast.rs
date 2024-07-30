@@ -170,6 +170,7 @@ pub enum Expression {
     Empty,
     Identifier(Identifier),
     IntegerLiteral(IntegerLiteral),
+    BooleanLiteral(BooleanLiteral),
     PrefixExpression(PrefixExpression),
     InfixExpression(InfixExpression),
 }
@@ -180,6 +181,7 @@ impl Expression {
             Expression::Empty => "",
             Expression::Identifier(e) => e.token_literal(),
             Expression::IntegerLiteral(e) => e.token_literal(),
+            Expression::BooleanLiteral(e) => e.token_literal(),
             Expression::PrefixExpression(e) => e.token_literal(),
             Expression::InfixExpression(e) => e.token_literal(),
         }
@@ -190,6 +192,7 @@ impl Expression {
             Expression::Empty => String::new(),
             Expression::Identifier(e) => e.string(),
             Expression::IntegerLiteral(e) => e.string(),
+            Expression::BooleanLiteral(e) => e.string(),
             Expression::PrefixExpression(e) => e.string(),
             Expression::InfixExpression(e) => e.string(),
         }
@@ -224,6 +227,24 @@ pub struct IntegerLiteral {
 }
 
 impl IntegerLiteral {
+    pub fn token_literal(&self) -> &str {
+        return &self.token.literal;
+    }
+
+    pub fn string(&self) -> String {
+        return self.value.to_string();
+    }
+}
+
+// <boolean>
+// ex: true
+#[derive(Debug, PartialEq)]
+pub struct BooleanLiteral {
+    pub token: Token,
+    pub value: bool,
+}
+
+impl BooleanLiteral {
     pub fn token_literal(&self) -> &str {
         return &self.token.literal;
     }
@@ -303,7 +324,9 @@ impl InfixExpression {
 
         out.push_str("(");
         out.push_str(left_str.as_str());
+        out.push_str(" ");
         out.push_str(self.operator.as_str());
+        out.push_str(" ");
         out.push_str(right_str.as_str());
         out.push_str(")");
 
