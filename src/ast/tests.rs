@@ -2,7 +2,6 @@
 mod tests {
     use super::super::super::lexer;
     use super::super::*;
-    use std::matches;
 
     #[test]
     fn test_string() {

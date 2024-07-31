@@ -90,6 +90,16 @@ impl<'a> Parser<'a> {
             .insert(lexer::TokenType::MINUS, |p: &mut Parser| {
                 p.parse_prefix_expression()
             });
+        parser
+            .prefix_parse_fns
+            .insert(lexer::TokenType::LPAREN, |p: &mut Parser| {
+                p.parse_grouped_expression()
+            });
+        parser
+            .prefix_parse_fns
+            .insert(lexer::TokenType::IF, |p: &mut Parser| {
+                p.parse_if_expression()
+            });
 
         // Register infix expression parsing functions.
         parser.infix_parse_fns.insert(
@@ -166,7 +176,7 @@ impl<'a> Parser<'a> {
                     value: i,
                 }));
             }
-            Err(e) => {
+            Err(_) => {
                 self.errors.push(format!(
                     "could not parse {:?} as integer",
                     self.current_token.literal
@@ -177,7 +187,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_boolean_literal(&mut self) -> Option<ast::Expression> {
-        let mut boolean_value: bool;
+        let boolean_value: bool;
         match self.current_token.type_ {
             lexer::TokenType::TRUE => {
                 boolean_value = true;
@@ -201,14 +211,64 @@ impl<'a> Parser<'a> {
         }));
     }
 
+    fn parse_grouped_expression(&mut self) -> Option<ast::Expression> {
+        self.next_token();
+        let expression = self.parse_expression(LOWEST);
+        if !self.expect_peek(lexer::TokenType::RPAREN) {
+            return None;
+        } else {
+            return expression;
+        }
+    }
+
+    fn parse_if_expression(&mut self) -> Option<ast::Expression> {
+        let if_token = self.current_token.clone();
+
+        if !self.expect_peek(lexer::TokenType::LPAREN) {
+            return None;
+        }
+
+        self.next_token();
+        let boxed_condition = if let Some(condition) = self.parse_expression(LOWEST) {
+            Some(Box::new(condition))
+        } else {
+            None
+        };
+
+        if !self.expect_peek(lexer::TokenType::RPAREN) {
+            return None;
+        }
+        if !self.expect_peek(lexer::TokenType::LBRACE) {
+            return None;
+        }
+
+        let consequence = self.parse_block_statement();
+
+        let alternative: Option<ast::BlockStatement>;
+        if self.peek_token.type_ == lexer::TokenType::ELSE {
+            self.next_token();
+            if !self.expect_peek(lexer::TokenType::LBRACE) {
+                return None;
+            }
+            alternative = Some(self.parse_block_statement());
+        } else {
+            alternative = None;
+        }
+
+        return Some(ast::Expression::IfExpression(ast::IfExpression {
+            token: if_token,
+            condition: boxed_condition,
+            consequence: consequence,
+            alternative: alternative, // todo
+        }));
+    }
+
     fn parse_prefix_expression(&mut self) -> Option<ast::Expression> {
         let token = self.current_token.clone();
         let operator = self.current_token.literal.clone();
         self.next_token();
-        let right = self.parse_expression(PREFIX);
 
-        // Introduce indirection with a `Box` (i.e. pointer) to break cycle between
-        // `PrefixExpression` <-> `Expression`.
+        let right = self.parse_expression(PREFIX);
         let boxed_right = if let Some(e) = right {
             Some(Box::new(e))
         } else {
@@ -340,6 +400,24 @@ impl<'a> Parser<'a> {
                 });
             }
         }
+    }
+
+    fn parse_block_statement(&mut self) -> ast::BlockStatement {
+        let mut block_statement = ast::BlockStatement {
+            token: self.current_token.clone(),
+            statements: Vec::new(),
+        };
+        self.next_token();
+
+        while self.current_token.type_ != lexer::TokenType::RBRACE
+            && self.current_token.type_ != lexer::TokenType::EOF
+        {
+            if let Some(s) = self.parse_statement() {
+                block_statement.statements.push(s);
+            }
+            self.next_token();
+        }
+        return block_statement;
     }
 
     fn parse_statement(&mut self) -> Option<ast::Statement> {

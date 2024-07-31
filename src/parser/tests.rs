@@ -1,7 +1,6 @@
 #[cfg(test)]
 mod tests {
     use super::super::*;
-    use std::matches;
 
     fn assert_eq_let_statement(statement: &ast::LetStatement, expected_name: String) {
         assert_eq!(statement.token.literal, "let");
@@ -286,6 +285,7 @@ mod tests {
                 expected_left: 4,
                 expected_right: 5,
             },
+            // todo: add test cases that use boolean literals
         ];
         for test_case in test_cases.iter() {
             let mut lexer = lexer::Lexer::new(test_case.input.clone());
@@ -402,6 +402,26 @@ mod tests {
                 input: "3 < 5 == true",
                 expected: "((3 < 5) == true)",
             },
+            TestCase {
+                input: "(4 + 5) * 6",
+                expected: "((4 + 5) * 6)",
+            },
+            TestCase {
+                input: "1 + (2 + 3) + 4",
+                expected: "((1 + (2 + 3)) + 4)",
+            },
+            TestCase {
+                input: "2 / (5 + 5)",
+                expected: "(2 / (5 + 5))",
+            },
+            TestCase {
+                input: "-(5 + 5)",
+                expected: "(-(5 + 5))",
+            },
+            TestCase {
+                input: "!(true == true)",
+                expected: "(!(true == true))",
+            },
         ];
 
         for test_case in test_cases.iter() {
@@ -413,5 +433,174 @@ mod tests {
 
             assert_eq!(program.string(), test_case.expected.to_string());
         }
+    }
+
+    #[test]
+    fn test_if_expression() {
+        let input = "if (x < y) { x }";
+        let mut lexer = lexer::Lexer::new(String::from(input));
+        let mut parser = Parser::new(&mut lexer);
+
+        let program: ast::Program = parser.parse_program();
+        check_parser_errors(&parser);
+
+        assert_eq!(program.statements.len(), 1);
+        let actual_statement = &program.statements[0];
+
+        assert_eq!(
+            *actual_statement,
+            ast::Statement::ExpressionStatement(ast::ExpressionStatement {
+                token: lexer::Token {
+                    type_: lexer::TokenType::IF,
+                    literal: String::from("if"),
+                },
+                expression: ast::Expression::IfExpression(ast::IfExpression {
+                    token: lexer::Token {
+                        type_: lexer::TokenType::IF,
+                        literal: String::from("if"),
+                    },
+                    condition: Some(Box::new(ast::Expression::InfixExpression(
+                        ast::InfixExpression {
+                            token: lexer::Token {
+                                type_: lexer::TokenType::LT,
+                                literal: String::from("<"),
+                            },
+                            operator: String::from("<"),
+                            left: Some(Box::new(ast::Expression::Identifier(ast::Identifier {
+                                token: lexer::Token {
+                                    type_: lexer::TokenType::IDENT,
+                                    literal: String::from("x"),
+                                },
+                                value: String::from("x"),
+                            }))),
+                            right: Some(Box::new(ast::Expression::Identifier(ast::Identifier {
+                                token: lexer::Token {
+                                    type_: lexer::TokenType::IDENT,
+                                    literal: String::from("y"),
+                                },
+                                value: String::from("y"),
+                            }))),
+                        }
+                    ))),
+                    consequence: ast::BlockStatement {
+                        token: lexer::Token {
+                            type_: lexer::TokenType::LBRACE,
+                            literal: String::from("{"),
+                        },
+                        statements: vec![ast::Statement::ExpressionStatement(
+                            ast::ExpressionStatement {
+                                token: lexer::Token {
+                                    type_: lexer::TokenType::IDENT,
+                                    literal: String::from("x"),
+                                },
+                                expression: ast::Expression::Identifier(ast::Identifier {
+                                    token: lexer::Token {
+                                        type_: lexer::TokenType::IDENT,
+                                        literal: String::from("x"),
+                                    },
+                                    value: String::from("x"),
+                                }),
+                            }
+                        )],
+                    },
+                    alternative: None,
+                }),
+            })
+        );
+    }
+
+    #[test]
+    fn test_if_else_expression() {
+        let input = "if (x < y) { x } else { y }";
+        let mut lexer = lexer::Lexer::new(String::from(input));
+        let mut parser = Parser::new(&mut lexer);
+
+        let program: ast::Program = parser.parse_program();
+        check_parser_errors(&parser);
+
+        assert_eq!(program.statements.len(), 1);
+        let actual_statement = &program.statements[0];
+
+        // todo: reduce duplication with `test_if_expression`
+        assert_eq!(
+            *actual_statement,
+            ast::Statement::ExpressionStatement(ast::ExpressionStatement {
+                token: lexer::Token {
+                    type_: lexer::TokenType::IF,
+                    literal: String::from("if"),
+                },
+                expression: ast::Expression::IfExpression(ast::IfExpression {
+                    token: lexer::Token {
+                        type_: lexer::TokenType::IF,
+                        literal: String::from("if"),
+                    },
+                    condition: Some(Box::new(ast::Expression::InfixExpression(
+                        ast::InfixExpression {
+                            token: lexer::Token {
+                                type_: lexer::TokenType::LT,
+                                literal: String::from("<"),
+                            },
+                            operator: String::from("<"),
+                            left: Some(Box::new(ast::Expression::Identifier(ast::Identifier {
+                                token: lexer::Token {
+                                    type_: lexer::TokenType::IDENT,
+                                    literal: String::from("x"),
+                                },
+                                value: String::from("x"),
+                            }))),
+                            right: Some(Box::new(ast::Expression::Identifier(ast::Identifier {
+                                token: lexer::Token {
+                                    type_: lexer::TokenType::IDENT,
+                                    literal: String::from("y"),
+                                },
+                                value: String::from("y"),
+                            }))),
+                        }
+                    ))),
+                    consequence: ast::BlockStatement {
+                        token: lexer::Token {
+                            type_: lexer::TokenType::LBRACE,
+                            literal: String::from("{"),
+                        },
+                        statements: vec![ast::Statement::ExpressionStatement(
+                            ast::ExpressionStatement {
+                                token: lexer::Token {
+                                    type_: lexer::TokenType::IDENT,
+                                    literal: String::from("x"),
+                                },
+                                expression: ast::Expression::Identifier(ast::Identifier {
+                                    token: lexer::Token {
+                                        type_: lexer::TokenType::IDENT,
+                                        literal: String::from("x"),
+                                    },
+                                    value: String::from("x"),
+                                }),
+                            }
+                        )],
+                    },
+                    alternative: Some(ast::BlockStatement {
+                        token: lexer::Token {
+                            type_: lexer::TokenType::LBRACE,
+                            literal: String::from("{"),
+                        },
+                        statements: vec![ast::Statement::ExpressionStatement(
+                            ast::ExpressionStatement {
+                                token: lexer::Token {
+                                    type_: lexer::TokenType::IDENT,
+                                    literal: String::from("y"),
+                                },
+                                expression: ast::Expression::Identifier(ast::Identifier {
+                                    token: lexer::Token {
+                                        type_: lexer::TokenType::IDENT,
+                                        literal: String::from("y"),
+                                    },
+                                    value: String::from("y"),
+                                }),
+                            }
+                        )],
+                    }),
+                }),
+            })
+        );
     }
 }

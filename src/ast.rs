@@ -67,6 +67,7 @@ impl Program {
 
 #[derive(Debug, PartialEq)]
 pub enum Statement {
+    BlockStatement(BlockStatement),
     LetStatement(LetStatement),
     ReturnStatement(ReturnStatement),
     ExpressionStatement(ExpressionStatement),
@@ -75,7 +76,7 @@ pub enum Statement {
 impl Statement {
     pub fn token_literal(&self) -> &str {
         match self {
-            // Can these be consolidated?
+            Statement::BlockStatement(s) => s.token_literal(),
             Statement::LetStatement(s) => s.token_literal(),
             Statement::ReturnStatement(s) => s.token_literal(),
             Statement::ExpressionStatement(s) => s.token_literal(),
@@ -84,6 +85,7 @@ impl Statement {
 
     pub fn string(&self) -> String {
         match self {
+            Statement::BlockStatement(s) => s.string(),
             Statement::LetStatement(s) => s.string(),
             Statement::ReturnStatement(s) => s.string(),
             Statement::ExpressionStatement(s) => s.string(),
@@ -91,12 +93,31 @@ impl Statement {
     }
 }
 
+#[derive(Debug, PartialEq)]
+pub struct BlockStatement {
+    pub token: Token, // `{`
+    pub statements: Vec<Statement>,
+}
+
+impl BlockStatement {
+    pub fn token_literal(&self) -> &str {
+        return &self.token.literal;
+    }
+
+    pub fn string(&self) -> String {
+        let mut out = String::new();
+        for statement in self.statements.iter() {
+            out.push_str(statement.string().as_str());
+        }
+        return out;
+    }
+}
 // statement node types
 // let <identifier> = <expression>
 // ex: `let x = 5;`
 #[derive(Debug, PartialEq)]
 pub struct LetStatement {
-    pub token: Token,
+    pub token: Token, // `let`
     pub name: Identifier,
     pub value: Expression,
 }
@@ -124,7 +145,7 @@ impl LetStatement {
 // ex: return 5;
 #[derive(Debug, PartialEq)]
 pub struct ReturnStatement {
-    pub token: Token,
+    pub token: Token, // `return`
     pub return_value: Expression,
 }
 
@@ -173,6 +194,7 @@ pub enum Expression {
     BooleanLiteral(BooleanLiteral),
     PrefixExpression(PrefixExpression),
     InfixExpression(InfixExpression),
+    IfExpression(IfExpression),
 }
 
 impl Expression {
@@ -184,6 +206,7 @@ impl Expression {
             Expression::BooleanLiteral(e) => e.token_literal(),
             Expression::PrefixExpression(e) => e.token_literal(),
             Expression::InfixExpression(e) => e.token_literal(),
+            Expression::IfExpression(e) => e.token_literal(),
         }
     }
 
@@ -195,6 +218,7 @@ impl Expression {
             Expression::BooleanLiteral(e) => e.string(),
             Expression::PrefixExpression(e) => e.string(),
             Expression::InfixExpression(e) => e.string(),
+            Expression::IfExpression(e) => e.string(),
         }
     }
 }
@@ -329,6 +353,45 @@ impl InfixExpression {
         out.push_str(" ");
         out.push_str(right_str.as_str());
         out.push_str(")");
+
+        return out;
+    }
+}
+
+// if <expression> <block statement> else <block statement>
+// ex: if (x < y) { return x; } else { return y; }
+// notes: else is optional
+#[derive(Debug, PartialEq)]
+pub struct IfExpression {
+    pub token: Token, // `if`
+    pub condition: Option<Box<Expression>>,
+    pub consequence: BlockStatement,
+    pub alternative: Option<BlockStatement>,
+}
+
+impl IfExpression {
+    pub fn token_literal(&self) -> &str {
+        return &self.token.literal;
+    }
+
+    pub fn string(&self) -> String {
+        let mut out = String::new();
+
+        let condition_str = if let Some(e) = &self.condition {
+            e.string()
+        } else {
+            String::from("~missing~")
+        };
+
+        out.push_str("if");
+        out.push_str(condition_str.as_str());
+        out.push_str(" ");
+        out.push_str(self.consequence.string().as_str());
+
+        if let Some(s) = &self.alternative {
+            out.push_str("else ");
+            out.push_str(s.string().as_str());
+        }
 
         return out;
     }
