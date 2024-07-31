@@ -195,6 +195,7 @@ pub enum Expression {
     PrefixExpression(PrefixExpression),
     InfixExpression(InfixExpression),
     IfExpression(IfExpression),
+    FunctionLiteral(FunctionLiteral),
 }
 
 impl Expression {
@@ -207,6 +208,7 @@ impl Expression {
             Expression::PrefixExpression(e) => e.token_literal(),
             Expression::InfixExpression(e) => e.token_literal(),
             Expression::IfExpression(e) => e.token_literal(),
+            Expression::FunctionLiteral(e) => e.token_literal(),
         }
     }
 
@@ -219,6 +221,7 @@ impl Expression {
             Expression::PrefixExpression(e) => e.string(),
             Expression::InfixExpression(e) => e.string(),
             Expression::IfExpression(e) => e.string(),
+            Expression::FunctionLiteral(e) => e.string(),
         }
     }
 }
@@ -383,7 +386,7 @@ impl IfExpression {
             String::from("~missing~")
         };
 
-        out.push_str("if");
+        out.push_str(self.token.literal.as_str());
         out.push_str(condition_str.as_str());
         out.push_str(" ");
         out.push_str(self.consequence.string().as_str());
@@ -392,6 +395,43 @@ impl IfExpression {
             out.push_str("else ");
             out.push_str(s.string().as_str());
         }
+
+        return out;
+    }
+}
+
+// fn <parameters> <block statement>
+// ex: fn(x, y) { return x + y }
+#[derive(Debug, PartialEq)]
+pub struct FunctionLiteral {
+    pub token: Token, // `fn`
+    pub parameters: Option<Vec<Identifier>>,
+    pub body: BlockStatement,
+}
+
+impl FunctionLiteral {
+    pub fn token_literal(&self) -> &str {
+        return &self.token.literal;
+    }
+
+    pub fn string(&self) -> String {
+        let mut out = String::new();
+
+        out.push_str(self.token.literal.as_str());
+        out.push_str("(");
+
+        if let Some(parameters) = &self.parameters {
+            out.push_str(
+                parameters
+                    .iter()
+                    .map(|e| e.string())
+                    .collect::<Vec<String>>()
+                    .join(", ")
+                    .as_str(),
+            );
+        }
+        out.push_str(")");
+        out.push_str(self.body.string().as_str());
 
         return out;
     }

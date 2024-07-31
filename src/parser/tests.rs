@@ -1,10 +1,23 @@
 #[cfg(test)]
 mod tests {
     use super::super::*;
+    use std::ops::Deref;
 
     fn assert_eq_let_statement(statement: &ast::LetStatement, expected_name: String) {
         assert_eq!(statement.token.literal, "let");
         assert_eq!(statement.name.value, expected_name);
+    }
+
+    fn assert_eq_infix_expression(
+        expression: &ast::InfixExpression,
+        left: &str,
+        operator: &str,
+        right: &str,
+    ) {
+        // todo: test against full AST node objects
+        assert_eq!(expression.left.as_ref().unwrap().deref().string(), left);
+        assert_eq!(expression.operator.as_str(), operator);
+        assert_eq!(expression.right.as_ref().unwrap().deref().string(), right);
     }
 
     fn check_parser_errors(parser: &Parser) {
@@ -602,5 +615,70 @@ mod tests {
                 }),
             })
         );
+    }
+
+    #[test]
+    fn test_function_literal() {
+        let input = "fn(x, y) { x + y; }";
+
+        let mut lexer = lexer::Lexer::new(String::from(input));
+        let mut parser = Parser::new(&mut lexer);
+
+        let program: ast::Program = parser.parse_program();
+        check_parser_errors(&parser);
+
+        assert_eq!(program.statements.len(), 1);
+        let actual_statement = &program.statements[0];
+
+        if let ast::Statement::ExpressionStatement(ast::ExpressionStatement {
+            expression:
+                ast::Expression::FunctionLiteral(ast::FunctionLiteral {
+                    parameters: Some(parameters),
+                    body:
+                        ast::BlockStatement {
+                            statements: statements,
+                            ..
+                        },
+                    ..
+                }),
+            ..
+        }) = actual_statement
+        {
+            assert_eq!(
+                *parameters,
+                vec![
+                    ast::Identifier {
+                        token: lexer::Token {
+                            type_: lexer::TokenType::IDENT,
+                            literal: String::from("x")
+                        },
+                        value: String::from("x")
+                    },
+                    ast::Identifier {
+                        token: lexer::Token {
+                            type_: lexer::TokenType::IDENT,
+                            literal: String::from("y")
+                        },
+                        value: String::from("y")
+                    }
+                ],
+            );
+            assert_eq!(statements.len(), 1);
+
+            let infix_expression = match &statements[0] {
+                ast::Statement::ExpressionStatement(ast::ExpressionStatement {
+                    expression: ast::Expression::InfixExpression(infix_expression),
+                    ..
+                }) => infix_expression,
+                _ => panic!(
+                    "expected to find an `InfixExpression` in {:?}",
+                    actual_statement
+                ),
+            };
+
+            assert_eq_infix_expression(infix_expression, "x", "+", "y");
+        } else {
+            panic!("expected `ExpressionStatement`, got {:?}", actual_statement);
+        };
     }
 }

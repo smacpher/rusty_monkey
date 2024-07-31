@@ -100,6 +100,11 @@ impl<'a> Parser<'a> {
             .insert(lexer::TokenType::IF, |p: &mut Parser| {
                 p.parse_if_expression()
             });
+        parser
+            .prefix_parse_fns
+            .insert(lexer::TokenType::FUNCTION, |p: &mut Parser| {
+                p.parse_function_literal()
+            });
 
         // Register infix expression parsing functions.
         parser.infix_parse_fns.insert(
@@ -223,12 +228,11 @@ impl<'a> Parser<'a> {
 
     fn parse_if_expression(&mut self) -> Option<ast::Expression> {
         let if_token = self.current_token.clone();
-
         if !self.expect_peek(lexer::TokenType::LPAREN) {
             return None;
         }
-
         self.next_token();
+
         let boxed_condition = if let Some(condition) = self.parse_expression(LOWEST) {
             Some(Box::new(condition))
         } else {
@@ -261,6 +265,67 @@ impl<'a> Parser<'a> {
             consequence: consequence,
             alternative: alternative, // todo
         }));
+    }
+
+    fn parse_function_literal(&mut self) -> Option<ast::Expression> {
+        let fn_token = self.current_token.clone();
+        if !self.expect_peek(lexer::TokenType::LPAREN) {
+            return None;
+        }
+        let parameters = self.parse_function_parameters();
+
+        if !self.expect_peek(lexer::TokenType::LBRACE) {
+            return None;
+        }
+        let body = self.parse_block_statement();
+
+        return Some(ast::Expression::FunctionLiteral(ast::FunctionLiteral {
+            token: fn_token,
+            parameters: parameters,
+            body: body,
+        }));
+    }
+
+    fn parse_function_parameters(&mut self) -> Option<Vec<ast::Identifier>> {
+        // We use ast::Identifier directly, instead of wrapping it in the ast::Expression enum,
+        // since parameters in function literals are just standalone identifiers, not expressions.
+        let mut parameters = Vec::<ast::Identifier>::new();
+        if self.peek_token.type_ == lexer::TokenType::RPAREN {
+            self.next_token();
+            return Some(parameters);
+        }
+
+        // Parse first parameter.
+        if !self.expect_peek(lexer::TokenType::IDENT) {
+            // Malformed, missing closing parenthesis.
+            return None;
+        }
+        parameters.push(ast::Identifier {
+            token: self.current_token.clone(),
+            value: self.current_token.literal.clone(),
+        });
+
+        // Parse rest of parameters, while there are more.
+        while self.peek_token.type_ == lexer::TokenType::COMMA {
+            self.next_token();
+            if !self.expect_peek(lexer::TokenType::IDENT) {
+                // Malformed, missing closing parenthesis.
+                return None;
+            }
+            parameters.push(ast::Identifier {
+                token: self.current_token.clone(),
+                value: self.current_token.literal.clone(),
+            });
+        }
+
+        dbg!(&parameters);
+
+        if !self.expect_peek(lexer::TokenType::RPAREN) {
+            // Malformed, missing closing parenthesis.
+            return None;
+        }
+
+        return Some(parameters);
     }
 
     fn parse_prefix_expression(&mut self) -> Option<ast::Expression> {
