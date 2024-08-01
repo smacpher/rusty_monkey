@@ -196,6 +196,7 @@ pub enum Expression {
     InfixExpression(InfixExpression),
     IfExpression(IfExpression),
     FunctionLiteral(FunctionLiteral),
+    CallExpression(CallExpression),
 }
 
 impl Expression {
@@ -209,6 +210,7 @@ impl Expression {
             Expression::InfixExpression(e) => e.token_literal(),
             Expression::IfExpression(e) => e.token_literal(),
             Expression::FunctionLiteral(e) => e.token_literal(),
+            Expression::CallExpression(e) => e.token_literal(),
         }
     }
 
@@ -222,6 +224,7 @@ impl Expression {
             Expression::InfixExpression(e) => e.string(),
             Expression::IfExpression(e) => e.string(),
             Expression::FunctionLiteral(e) => e.string(),
+            Expression::CallExpression(e) => e.string(),
         }
     }
 }
@@ -400,7 +403,7 @@ impl IfExpression {
     }
 }
 
-// fn <parameters> <block statement>
+// fn(<identifier>, ..) <block statement>
 // ex: fn(x, y) { return x + y }
 #[derive(Debug, PartialEq)]
 pub struct FunctionLiteral {
@@ -432,6 +435,39 @@ impl FunctionLiteral {
         }
         out.push_str(")");
         out.push_str(self.body.string().as_str());
+        return out;
+    }
+}
+
+// <expression>(<expression>, ..)
+// ex: foo(1, 2 * 2)
+// ex: fn(x, y) {x + y}(1, 2)
+#[derive(Debug, PartialEq)]
+pub struct CallExpression {
+    pub token: Token,
+    pub function: Box<Expression>,
+    pub arguments: Vec<Expression>,
+}
+
+impl CallExpression {
+    pub fn token_literal(&self) -> &str {
+        return &self.token.literal;
+    }
+
+    pub fn string(&self) -> String {
+        let mut out = String::new();
+
+        out.push_str(self.function.string().as_str());
+        out.push_str("(");
+        out.push_str(
+            self.arguments
+                .iter()
+                .map(|e| e.string())
+                .collect::<Vec<String>>()
+                .join(", ")
+                .as_str(),
+        );
+        out.push_str(")");
 
         return out;
     }

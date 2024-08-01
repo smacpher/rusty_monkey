@@ -3,21 +3,105 @@ mod tests {
     use super::super::*;
     use std::ops::Deref;
 
-    fn assert_eq_let_statement(statement: &ast::LetStatement, expected_name: String) {
+    // Test-only struct for representing simple operand types.
+    #[derive(Debug)]
+    enum Operand {
+        Integer(i64),
+        Boolean(bool),
+        Identifier(String),
+    }
+
+    fn assert_let_statement(statement: &ast::LetStatement, expected_name: String) {
         assert_eq!(statement.token.literal, "let");
         assert_eq!(statement.name.value, expected_name);
     }
 
-    fn assert_eq_infix_expression(
-        expression: &ast::InfixExpression,
-        left: &str,
-        operator: &str,
-        right: &str,
+    fn assert_identifier(identifier: &ast::Identifier, expected_value: String) {
+        assert_eq!(
+            *identifier,
+            ast::Identifier {
+                token: lexer::Token {
+                    type_: lexer::TokenType::IDENT,
+                    literal: expected_value.clone()
+                },
+                value: expected_value
+            },
+        );
+    }
+
+    fn assert_identifier_expression(expression: &ast::Expression, expected_value: String) {
+        match expression {
+            ast::Expression::Identifier(identifier) => {
+                assert_identifier(identifier, expected_value)
+            }
+            _ => panic!("expected `Identifier`, got {:?}", expression),
+        };
+    }
+
+    fn assert_literal_expression(expression: &ast::Expression, expected_value: Operand) {
+        match expected_value {
+            Operand::Integer(i) => {
+                assert_eq!(
+                    *expression,
+                    ast::Expression::IntegerLiteral(ast::IntegerLiteral {
+                        token: lexer::Token {
+                            type_: lexer::TokenType::INT,
+                            literal: i.to_string()
+                        },
+                        value: i
+                    }),
+                );
+            }
+            Operand::Boolean(true) => {
+                assert_eq!(
+                    *expression,
+                    ast::Expression::BooleanLiteral(ast::BooleanLiteral {
+                        token: lexer::Token {
+                            type_: lexer::TokenType::TRUE,
+                            literal: String::from("true"),
+                        },
+                        value: true,
+                    })
+                );
+            }
+            Operand::Boolean(false) => {
+                assert_eq!(
+                    *expression,
+                    ast::Expression::BooleanLiteral(ast::BooleanLiteral {
+                        token: lexer::Token {
+                            type_: lexer::TokenType::TRUE,
+                            literal: String::from("false"),
+                        },
+                        value: false,
+                    })
+                );
+            }
+            Operand::Identifier(s) => {
+                assert_identifier_expression(expression, s);
+            }
+        }
+    }
+
+    fn assert_infix_expression(
+        expression: &ast::Expression,
+        expected_left_value: Operand,
+        expected_operator: &str,
+        expected_right_value: Operand,
     ) {
-        // todo: test against full AST node objects
-        assert_eq!(expression.left.as_ref().unwrap().deref().string(), left);
-        assert_eq!(expression.operator.as_str(), operator);
-        assert_eq!(expression.right.as_ref().unwrap().deref().string(), right);
+        match expression {
+            ast::Expression::InfixExpression(infix_expression) => {
+                assert_literal_expression(
+                    infix_expression.left.as_ref().unwrap(),
+                    expected_left_value,
+                );
+                assert_eq!(infix_expression.operator.as_str(), expected_operator);
+                assert_literal_expression(
+                    infix_expression.right.as_ref().unwrap(),
+                    expected_right_value,
+                );
+            }
+            _ => panic!("expected `InfixExpression`, got {:?}", expression),
+        }
     }
 
     fn check_parser_errors(parser: &Parser) {
@@ -45,7 +129,7 @@ mod tests {
 
             match actual_statement {
                 ast::Statement::LetStatement(s) => {
-                    assert_eq_let_statement(s, expected_name.to_string())
+                    assert_let_statement(s, expected_name.to_string())
                 }
                 _ => panic!("expected `LetStatement`, got {:?}", actual_statement),
             }
@@ -634,49 +718,63 @@ mod tests {
             expression:
                 ast::Expression::FunctionLiteral(ast::FunctionLiteral {
                     parameters: Some(parameters),
-                    body:
-                        ast::BlockStatement {
-                            statements: statements,
-                            ..
-                        },
+                    body: ast::BlockStatement { statements, .. },
                     ..
                 }),
             ..
         }) = actual_statement
         {
-            assert_eq!(
-                *parameters,
-                vec![
-                    ast::Identifier {
-                        token: lexer::Token {
-                            type_: lexer::TokenType::IDENT,
-                            literal: String::from("x")
-                        },
-                        value: String::from("x")
-                    },
-                    ast::Identifier {
-                        token: lexer::Token {
-                            type_: lexer::TokenType::IDENT,
-                            literal: String::from("y")
-                        },
-                        value: String::from("y")
-                    }
-                ],
-            );
+            assert_eq!(parameters.len(), 2);
+            assert_identifier(&parameters[0], String::from("x"));
+            assert_identifier(&parameters[1], String::from("y"));
+
             assert_eq!(statements.len(), 1);
+            assert_infix_expression(
+                match &statements[0] {
+                    ast::Statement::ExpressionStatement(ast::ExpressionStatement {
+                        expression,
+                        ..
+                    }) => expression,
+                    _ => panic!("expected `ExpressionStatement`, got {:?}", &statements[0]),
+                },
+                Operand::Identifier(String::from("x")),
+                "+",
+                Operand::Identifier(String::from("y")),
+            );
+        } else {
+            panic!("expected `ExpressionStatement`, got {:?}", actual_statement);
+        };
+    }
 
-            let infix_expression = match &statements[0] {
-                ast::Statement::ExpressionStatement(ast::ExpressionStatement {
-                    expression: ast::Expression::InfixExpression(infix_expression),
+    #[test]
+    fn test_call_expression() {
+        let input = "add(1, 2 * 3, 4 + 5);";
+
+        let mut lexer = lexer::Lexer::new(String::from(input));
+        let mut parser = Parser::new(&mut lexer);
+
+        let program: ast::Program = parser.parse_program();
+        check_parser_errors(&parser);
+
+        assert_eq!(program.statements.len(), 1);
+        let actual_statement = &program.statements[0];
+
+        if let ast::Statement::ExpressionStatement(ast::ExpressionStatement {
+            expression:
+                ast::Expression::CallExpression(ast::CallExpression {
+                    function,
+                    arguments,
                     ..
-                }) => infix_expression,
-                _ => panic!(
-                    "expected to find an `InfixExpression` in {:?}",
-                    actual_statement
-                ),
-            };
+                }),
+            ..
+        }) = actual_statement
+        {
+            assert_identifier_expression(function.deref(), String::from("add"));
 
-            assert_eq_infix_expression(infix_expression, "x", "+", "y");
+            assert_eq!(arguments.len(), 3);
+            assert_literal_expression(&arguments[0], Operand::Integer(1));
+            assert_infix_expression(&arguments[1], Operand::Integer(2), "*", Operand::Integer(3));
+            assert_infix_expression(&arguments[2], Operand::Integer(4), "+", Operand::Integer(5));
         } else {
             panic!("expected `ExpressionStatement`, got {:?}", actual_statement);
         };
